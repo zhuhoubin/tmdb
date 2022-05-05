@@ -37,6 +37,7 @@ public class PrintResult extends AppCompatActivity {
         int c;
         String stemp;
         int itemp;
+        double dtemo;
         Object oj;
 
          rst_tab = findViewById(R.id.rst_tab);
@@ -57,6 +58,10 @@ public class PrintResult extends AppCompatActivity {
                         case "char":
                             stemp = oj.toString();
                             tv.setText(stemp);
+                        case"double":
+                            dtemo = Double.parseDouble(oj.toString());
+                            tv.setText(dtemo+"");
+
                     }
                 }
                 tv.setGravity(Gravity.CENTER);

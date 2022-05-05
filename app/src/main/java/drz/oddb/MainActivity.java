@@ -13,6 +13,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.Serializable;
 
@@ -30,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     //查询输入框
 
     private EditText editText;
+    private EditText xtext;
+    private EditText ytext;
 
     private TextView text_view;
     TransAction trans = new TransAction(this);
@@ -75,6 +78,38 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 //onStop();
                 trans.PrintTab();
+            }
+        });
+
+        //SELECT按钮
+        Button select_button = findViewById(R.id.selectbutton);
+        select_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                xtext = findViewById(R.id.x_text);
+                ytext = findViewById(R.id.y_text);
+
+              double x=  Double.parseDouble(xtext.getText().toString());
+              double y=  Double.parseDouble(ytext.getText().toString());
+
+              TupleList tup = trans.queryselect("SELECT x AS x,y AS y FROM union WHERE x=0;");
+                int tabH = tup.tuplenum;
+                int r;
+                Object oj;
+
+              for(r=0;r<tabH;r++)  {
+                  oj=tup.tuplelist.get(r).tuple[0];
+                 if(x - Double.parseDouble(oj.toString())<=0.001 && x - Double.parseDouble(oj.toString())>=-0.001){
+                     oj=tup.tuplelist.get(r).tuple[1];
+                     if(y - Double.parseDouble(oj.toString())<=0.001 && y - Double.parseDouble(oj.toString())>=-0.001){
+                         Toast.makeText(MainActivity.this, "有接触风险", Toast.LENGTH_SHORT).show();
+                         break;
+                     }
+                 }
+                 if(r==tabH-1){
+                     Toast.makeText(MainActivity.this, "无接触风险", Toast.LENGTH_SHORT).show();
+                 }
+              }
             }
         });
     }

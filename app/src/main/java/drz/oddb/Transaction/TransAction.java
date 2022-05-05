@@ -143,6 +143,11 @@ public class TransAction {
                     log.WriteLog(s);
                     Update(aa);
                     new AlertDialog.Builder(context).setTitle("提示").setMessage("更新成功").setPositiveButton("确定",null).show();
+                case parse.OPT_CREATE_UNIONDEPUTY:
+                    log.WriteLog(s);
+                    CreateUnionDeputyClass(aa);
+                    new AlertDialog.Builder(context).setTitle("提示").setMessage("创建成功").setPositiveButton("确定",null).show();
+                    break;
                 default:
                     break;
 
@@ -155,7 +160,25 @@ public class TransAction {
         return s;
 
     }
+    public TupleList queryselect(String s) {
 
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(s.getBytes());
+        parse p = new parse(byteArrayInputStream);
+        try {
+            String[] aa = p.Run();
+
+            switch (Integer.parseInt(aa[0])) {
+                case parse.OPT_SELECT_DERECTSELECT:
+                    return queryselect2(aa);
+                default:
+                    return null;
+            }
+        } catch (ParseException e) {
+
+            e.printStackTrace();
+        }
+        return null;
+    }
     //CREATE CLASS dZ123 (nB1 int,nB2 char) ;
     //1,2,dZ123,nB1,int,nB2,char
     private void CreateOriginClass(String[] p) {
@@ -293,7 +316,8 @@ public class TransAction {
                 if(tuple.tuple[attrid].equals(value_string))
                     return true;
                 break;
-
+            case "double":
+                return true;
         }
         return false;
     }
@@ -546,6 +570,187 @@ public class TransAction {
 
     }
 
+    private TupleList queryselect2(String[] p){
+        TupleList tpl = new TupleList();
+        int attrnumber = Integer.parseInt(p[1]);
+        String[] attrname = new String[attrnumber];
+        int[] attrid = new int[attrnumber];
+        String[] attrtype= new String[attrnumber];
+        String classname = p[2+4*attrnumber];
+        int classid = 0;
+        for(int i = 0;i < attrnumber;i++){
+            for (ClassTableItem item:classt.classTable) {
+                if (item.classname.equals(classname) && item.attrname.equals(p[2+4*i])) {
+                    classid = item.classid;
+                    attrid[i] = item.attrid;
+                    attrtype[i] = item.attrtype;
+                    attrname[i] = p[5+4*i];
+                    //重命名
+
+                    break;
+                }
+            }
+        }
+
+
+        int sattrid = 0;
+        String sattrtype = null;
+        for (ClassTableItem item:classt.classTable) {
+            if (item.classid == classid && item.attrname.equals(p[3+4*attrnumber])) {
+                sattrid = item.attrid;
+                sattrtype = item.attrtype;
+                break;
+            }
+        }
+
+
+        for(ObjectTableItem item : topt.objectTable){
+            if(item.classid == classid){
+                Tuple tuple = GetTuple(item.blockid,item.offset);
+                if(Condition(sattrtype,tuple,sattrid,p[4*attrnumber+5])){
+                    //Switch
+
+                    for(int j = 0;j<attrnumber;j++){
+                        if(Integer.parseInt(p[3+4*j])==1){
+                            int value = Integer.parseInt(p[4+4*j]);
+                            int orivalue = Integer.parseInt((String)tuple.tuple[attrid[j]]);
+                            Object ob = value+orivalue;
+                            tuple.tuple[attrid[j]] = ob;
+                        }
+
+                    }
+
+
+
+                    tpl.addTuple(tuple);
+                }
+            }
+        }
+        for(int i =0;i<attrnumber;i++){
+            attrid[i]=i;
+        }
+//        PrintSelectResult(tpl,attrname,attrid,attrtype);
+        return tpl;
+
+    }
+
+    //CREATE UNIONDEPUTYCLASS person AS ( SELECT name, birth FROM student UNION SELECT name, birth FROM faculty);
+    //9 2 person name    birth     student    name            birth         faculty
+    //0 1 2      0+3      1+3      count+3  0+count+4       1+count+4      2*count+4
+    private void CreateUnionDeputyClass(String[] p){
+        int count = Integer.parseInt(p[1]);
+        String classname = p[2];//代理类的名字
+        String bedeputyname1 = p[count+3];//代理的类1的名字
+        String bedeputyname2 = p[2*count+3+1];//代理的类2的名字
+        classt.maxid++;
+        int classid = classt.maxid;//代理类的id
+        int bedeputyid1 = -1;//代理的类1的id
+        int bedeputyid2 = -1;//代理的类2的id
+        String[] attrname=new String[count];
+        String[] attrtype=new String[count];
+        int[] attrid=new int[count];
+        String[] bedeputyattrname1=new String[count];
+        String[] bedeputyattrname2=new String[count];
+        int[] bedeputyattrid1 = new int[count];
+        int[] bedeputyattrid2 = new int[count];
+        for(int j = 0;j<count;j++){
+            attrname[j] = p[j+3];
+            attrid[j] = j;
+            bedeputyattrname1[j] = p[j+3];
+            bedeputyattrname2[j] = p[j+count+4];
+        }
+
+        
+        String attrtype1;
+        for (int i = 0; i < count; i++) {
+            for (ClassTableItem item:classt.classTable) {
+                if (item.classname.equals(bedeputyname1)&&item.attrname.equals(p[3+i])) {
+                    bedeputyid1 = item.classid;
+                    bedeputyattrid1[i] = item.attrid;
+
+                        classt.classTable.add(new ClassTableItem(classname, classid, count,attrid[i],attrname[i], item.attrtype,"de"));
+                        switchingT.switchingTable.add(new SwitchingTableItem(item.attrname,attrname[i],"0"));
+                    
+                    break;
+                }
+            };
+        }
+
+        for (int i = 0; i < count; i++) {
+            for (ClassTableItem item:classt.classTable) {
+                if (item.classname.equals(bedeputyname2)&&item.attrname.equals(p[count+4+i])) {
+                    bedeputyid2 = item.classid;
+                    bedeputyattrid2[i] = item.attrid;                
+                    break;
+                }
+            };
+        }
+
+
+
+        String[] con =new String[3];
+        con[0] = p[3];
+        con[1] = "double";
+        con[2] = "0";
+        deputyt.deputyTable.add(new DeputyTableItem(bedeputyid1,classid,con));
+
+
+        TupleList tpl= new TupleList();
+
+        int conid = 0;
+        String contype  = null;
+        for(ClassTableItem item3:classt.classTable){
+            if(item3.attrname.equals(con[0])){
+                conid = item3.attrid;
+                contype = item3.attrtype;
+                break;
+            }
+        }
+        List<ObjectTableItem> obj = new ArrayList<>();
+        for(ObjectTableItem item2:topt.objectTable){
+            if(item2.classid ==bedeputyid1){
+                Tuple tuple = GetTuple(item2.blockid,item2.offset);
+                Tuple ituple = new Tuple();
+                ituple.tupleHeader = count;
+                ituple.tuple = new Object[count];
+
+                for(int o =0;o<count;o++){
+                    ituple.tuple[o] = tuple.tuple[bedeputyattrid1[o]];
+                }
+                topt.maxTupleId++;
+                int tupid = topt.maxTupleId;
+
+                int [] aa = InsertTuple(ituple);
+                //topt.objectTable.add(new ObjectTableItem(classid,tupid,aa[0],aa[1]));
+                obj.add(new ObjectTableItem(classid,tupid,aa[0],aa[1]));
+
+                //bi
+                biPointerT.biPointerTable.add(new BiPointerTableItem(bedeputyid1,item2.tupleid,classid,tupid));
+            }
+            if(item2.classid ==bedeputyid2){
+                Tuple tuple = GetTuple(item2.blockid,item2.offset);
+                Tuple ituple = new Tuple();
+                ituple.tupleHeader = count;
+                ituple.tuple = new Object[count];
+
+                for(int o =0;o<count;o++){
+                    ituple.tuple[o] = tuple.tuple[bedeputyattrid2[o]];
+                }
+                topt.maxTupleId++;
+                int tupid = topt.maxTupleId;
+
+                int [] aa = InsertTuple(ituple);
+                //topt.objectTable.add(new ObjectTableItem(classid,tupid,aa[0],aa[1]));
+                obj.add(new ObjectTableItem(classid,tupid,aa[0],aa[1]));
+
+                //bi
+                biPointerT.biPointerTable.add(new BiPointerTableItem(bedeputyid2,item2.tupleid,classid,tupid));
+            }
+        }
+        for(ObjectTableItem item6:obj) {
+            topt.objectTable.add(item6);
+        }
+    }
 
     //CREATE SELECTDEPUTY aa SELECT  b1+2 AS c1,b2 AS c2,b3 AS c3 FROM  bb WHERE t1="1" ;
     //2,3,aa,b1,1,2,c1,b2,0,0,c2,b3,0,0,c3,bb,t1,=,"1"
@@ -649,6 +854,7 @@ public class TransAction {
             topt.objectTable.add(item6);
         }
     }
+
 
     //SELECT popSinger -> singer.nation  FROM popSinger WHERE singerName = "JayZhou";
     //7,2,popSinger,singer,nation,popSinger,singerName,=,"JayZhou"
